@@ -44,7 +44,7 @@ describe('Escrow', () => {
     expect(address).to.not.be.null;
   });
 
-  xdescribe('Escrow', async() => {
+  describe('Escrow', async() => {
     it('should be properly created', async () => {
       const actualPrice = await contract.methods.price().call();
       expect(actualPrice).to.eq.BN(price);
@@ -107,7 +107,7 @@ describe('Escrow', () => {
 
   });
 
-  xdescribe('checking funds', async() => {
+  describe('checking funds', async() => {
     let sellerBalanceBefore;
     let buyerBalanceBefore;
     let sellerBalanceAfter;
@@ -139,7 +139,7 @@ describe('Escrow', () => {
       expect(sellerBalanceAfter.sub(sellerBalanceBefore)).to.eq.BN(doublePrice.sub(txCost));
     });
 
-    it('should return funds to seller and buyer after confirmReceived', async() => {
+    xit('should return funds to seller and buyer after confirmReceived', async() => {
       await closeOrConfirm(contract.methods.confirmPurchase().send({from: buyer, value: doublePrice}));
       await calcBalancesAfter();
 

@@ -14,6 +14,7 @@ contract Splitter {
     event TokensSplitted(ERC20 indexed token, address indexed sender, uint tokenAmount);
 
     constructor(address[] _beneficiaries, address _feeCollector) public {
+        require(_feeCollector != address(0));
         feeCollector = _feeCollector;
         beneficiaries = _beneficiaries;
     }
@@ -31,25 +32,24 @@ contract Splitter {
         require(msg.value == FEE);
         _;
     }
-
+    // Approve token amount before calling this function.
     function split(ERC20 tokenAddress, uint tokenAmount) public payable feeSend {
-        emit TokensSplitted(tokenAddress, msg.sender, tokenAmount);
-
         uint256 splittedAmount = tokenAmount.div(beneficiaries.length);
         uint256 amountToSend = splittedAmount.mul(beneficiaries.length);
 
         require(tokenAddress.transferFrom(msg.sender, address(this), amountToSend));
-
         splitTransfered(tokenAddress);
     }
 
+    // Use only when you accidentally sent tokens with transfer instead of approve.
     function splitTransfered(ERC20 tokenAddress) public payable feeSend {
         emit TokensSplitted(tokenAddress, msg.sender, tokenAmount);
         uint256 tokenAmount = tokenAddress.balanceOf(address(this));
 
         uint256 splittedAmount = tokenAmount.div(beneficiaries.length);
+        require(splittedAmount > 0);
         for (uint i = 0; i < beneficiaries.length; i++) {
-            // This could be approve, but it would make it dificult to find out what tokens got splitted.
+            // This could be approve, but it would make it difficult to find out what tokens got splitted.
             require(tokenAddress.transfer(beneficiaries[i], splittedAmount));
         }
     }
