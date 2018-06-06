@@ -17,7 +17,7 @@ async function expectError(promise) {
   throw Error('Expected error not received');
 }
 
-describe('Escrow', () => {
+xdescribe('Escrow', () => {
   const {BN} = web3.utils;
   let seller;
   let buyer;

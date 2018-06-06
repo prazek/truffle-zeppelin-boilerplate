@@ -19,7 +19,7 @@ async function expectError(promise) {
   throw Error('Expected error not received');
 }
 
-describe('Splitter', () => {
+xdescribe('Splitter', () => {
   const {BN} = web3.utils;
   let tokenOwner;
   let splitterOwner;
@@ -78,7 +78,7 @@ describe('Splitter', () => {
 
     });
 
-    it('check allowance', async() => {
+    xit('check allowance', async() => {
       //console.log(splitter.options.address);
       const allowance = await tokenContract.methods.allowance(tokenOwner, splitter.options.address).call();
       expect(allowance).to.be.eq.BN(someAmount);
@@ -87,7 +87,7 @@ describe('Splitter', () => {
       expect(balance).to.be.eq.BN(tokensCap);
     });
 
-    it('should be split', async () => {
+    xit('should be split', async () => {
 
       await splitter.methods.split(tokenAddr, someAmount).send({from: tokenOwner, value: finney});
       let b1 = await tokenContract.methods.balanceOf(addr1).call();
@@ -96,12 +96,12 @@ describe('Splitter', () => {
       expect(b2).to.be.eq.BN(someAmount.div(new BN("2")));
     });
 
-     it('should take fee', async () => {
+     xit('should take fee', async () => {
       await expectThrow(splitter.methods.split(tokenAddr, someAmount).send({from: tokenOwner}));
       await expectThrow(splitter.methods.split(tokenAddr, someAmount).send({from: tokenOwner, value: finney.add(finney)}));
     });
 
-     it('should be able to withdraw', async() => {
+     xit('should be able to withdraw', async() => {
        await splitter.methods.split(tokenAddr, someAmount).send({from: tokenOwner, value: finney});
        let before = await balanceOf(feeCollector);
        let receit = await splitter.methods.withdrawFee().send({from: feeCollector});
@@ -110,11 +110,11 @@ describe('Splitter', () => {
        expect(after.sub(before)).to.be.eq.BN(finney.sub(txCost));
      });
 
-     it('should fail with zero', async() => {
+     xit('should fail with zero', async() => {
        await expectThrow(splitter.methods.split(tokenAddr, new BN('0')).send({from: tokenOwner, value: finney}));
      });
 
-     it('should fail with more', async() => {
+     xit('should fail with more', async() => {
        await expectThrow(splitter.methods.split(tokenAddr, someAmount.add(someAmount)).send({from: tokenOwner, value: finney}));
      });
 

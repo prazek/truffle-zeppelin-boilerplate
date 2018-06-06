@@ -4,7 +4,7 @@ import Web3 from 'web3';
 import chai from 'chai';
 const {expect} = chai;
 
-describe('Whitelist', async () => {
+xdescribe('Whitelist', async () => {
   const web3 = createWeb3(Web3);
   let accounts;
   let whitelistContract;

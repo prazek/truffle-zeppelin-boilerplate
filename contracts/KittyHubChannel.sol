@@ -1,5 +1,65 @@
 pragma solidity ^0.4.23;
 
+//import "zeppelin-solidity/contracts/ECRecovery.sol"
+
+library ECRecovery {
+
+  /**
+   * @dev Recover signer address from a message by using his signature
+   * @param hash bytes32 message, the hash is the signed message. What is recovered is the signer address.
+   * @param sig bytes signature, the signature is generated using web3.eth.sign()
+   */
+  function recover(bytes32 hash, bytes sig) public pure returns (address) {
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+
+    //Check the signature length
+    if (sig.length != 65) {
+      return (address(0));
+    }
+
+    // Divide the signature in r, s and v variables
+    assembly {
+      r := mload(add(sig, 32))
+      s := mload(add(sig, 64))
+      v := byte(0, mload(add(sig, 96)))
+    }
+
+    // Version of signature should be 27 or 28, but 0 and 1 are also possible versions
+    if (v < 27) {
+      v += 27;
+    }
+
+    // If the version is correct return the signer address
+    if (v != 27 && v != 28) {
+      return (address(0));
+    } else {
+      return ecrecover(hash, v, r, s);
+    }
+  }
+
+
+ /**
+   * toEthSignedMessageHash
+   * @dev prefix a bytes32 value with "\x19Ethereum Signed Message:"
+   * @dev and hash the result
+   */
+  function toEthSignedMessageHash(bytes32 hash)
+    internal
+    pure
+    returns (bytes32)
+  {
+    // 32 is the length in bytes of hash,
+    // enforced by the type signature above
+    return keccak256(
+      "\x19Ethereum Signed Message:\n32",
+      hash
+    );
+  }
+}
+
+
 // File: zeppelin-solidity/contracts/math/SafeMath.sol
 
 /**
@@ -102,14 +162,17 @@ contract KittyHubChannel is Ownable {
     }
 
     uint256 constant public KITTY_VIEW_PRICE = 1 szabo;
-    uint64 constant public DISPUTE_TIME = 1 days;
+
 
     mapping (address => uint256) public allocatedFunds;
     mapping (address => ClosingChannelInfo) public closingChannelInfo;
-    uint256 ownerWithdrawableFunds;
+    uint256 public ownerWithdrawableFunds;
+    uint256 public disputeNumBlocks;
 
-    constructor() public Ownable() {
+
+    constructor(uint256 _disputeNumBlocks) public Ownable() {
         ownerWithdrawableFunds = 0;
+        disputeNumBlocks = _disputeNumBlocks;
     }
 
 
@@ -121,9 +184,39 @@ contract KittyHubChannel is Ownable {
         allocatedFunds[msg.sender] = allocatedFunds[msg.sender].add(msg.value);
     }
 
+     function prepareMessageToSign(address channelOwner, uint256 currentAmount) public
+        view
+        returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(
+            "MultiChannel update",
+            bytes32(currentAmount),
+            bytes32(channels[channelOwner].startedBlockNumber),
+            address(this)));
+    }
+
     function checkReceit(address user, uint64 declaredViewedKitties, bytes receit) pure returns(bool) {
-        // TODO:
-        return true;
+
+        bytes32 message = prepareMessageToSign(channelOwner, currentAmount);
+        bytes32 ethSignedHash = ECRecovery.toEthSignedMessageHash(message);
+        address signer = ECRecovery.recover(ethSignedHash, sig);
+
+        require(signer == channelOwner);
+
+        //address signer = ECRecovery.recover(receit);
+
+        //return signer == user;
+    }
+
+    function check(address channelOwner, uint256 currentAmount, bytes sig) public
+            view
+            onlyClosingChannel(channelOwner)
+    {
+        Channel storage channel = channels[channelOwner];
+
+        require(currentAmount <= channel.currentAmount);
+
+
     }
 
     modifier receitCorrect(address user, uint64 declaredViewedKitties, bytes receit) {
@@ -146,7 +239,7 @@ contract KittyHubChannel is Ownable {
     }
 
     function didDisputeTimePassed(address user) public view returns(bool) {
-        return closingChannelInfo[user].closingTime + DISPUTE_TIME <= now;
+        return closingChannelInfo[user].closingTime + disputeNumBlocks <= block.number;
     }
 
     modifier disputeTimeNotPassed(address user) {
@@ -167,28 +260,29 @@ contract KittyHubChannel is Ownable {
         require(KITTY_VIEW_PRICE.mul(declaredViewedKitties) <= allocatedFunds[user]);
 
         closingChannelInfo[user].locked = true;
-        closingChannelInfo[user].closingTime = now;
+        closingChannelInfo[user].closingTime = block.number;
         closingChannelInfo[user].viewedKitties = declaredViewedKitties;
     }
 
     function provideBetterReceit(address user, uint64 declaredViewedKitties, bytes receit)
-        public channelLocked(user) disputeTimeNotPassed(user) receitCorrect(user, declaredViewedKitties, receit) {
+            public channelLocked(user) disputeTimeNotPassed(user) receitCorrect(user, declaredViewedKitties, receit) {
 
+        require(closingChannelInfo[user].viewedKitties < declaredViewedKitties);
         closingChannelInfo[user].viewedKitties = declaredViewedKitties;
     }
 
-    function withdrawClosedChannel() public channelLocked(msg.sender) disputeTimePassed(msg.sender) {
+    function withdrawClosedChannel(address user) public channelLocked(user) disputeTimePassed(user) {
 
-        uint256 usedFunds = KITTY_VIEW_PRICE.mul(closingChannelInfo[msg.sender].viewedKitties);
+        uint256 usedFunds = KITTY_VIEW_PRICE.mul(closingChannelInfo[user].viewedKitties);
         ownerWithdrawableFunds = ownerWithdrawableFunds.add(usedFunds);
-        uint256 rest = allocatedFunds[msg.sender].sub(usedFunds);
+        uint256 rest = allocatedFunds[user].sub(usedFunds);
 
-        allocatedFunds[msg.sender] = 0;
-        closingChannelInfo[msg.sender].viewedKitties = 0;
-        closingChannelInfo[msg.sender].locked = false;
-        closingChannelInfo[msg.sender].closingTime = 0;
+        allocatedFunds[user] = 0;
+        closingChannelInfo[user].viewedKitties = 0;
+        closingChannelInfo[user].locked = false;
+        closingChannelInfo[user].closingTime = 0;
 
-        msg.sender.transfer(rest);
+        user.transfer(rest);
     }
 
     function withdrawUsersFunds() public onlyOwner {

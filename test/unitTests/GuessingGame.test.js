@@ -226,7 +226,7 @@ async function expectError(promise) {
   throw Error('Expected error not received');
 }
 
-describe('GuessingGame', () => {
+xdescribe('GuessingGame', () => {
   const {BN} = web3.utils;
   let owner;
   let verifier;
