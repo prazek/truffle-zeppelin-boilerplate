@@ -46,15 +46,17 @@ describe('KittyHubChannel', () => {
   let contractAddr;
   let txCost;
   let accounts;
-  let blocksNum = 5;
+  let blocksNum = new BN('5');
   const funds = new BN('2').mul(new BN('10').pow(new BN('18')));
   const kittyViewPrice = new BN('1').mul(new BN('10')).pow(new BN('12'));
 
 
   const balanceOf = async (client) => new BN(await web3.eth.getBalance(client));
-  function toBytes32(something) {
-      return "0x" + something.toString('hex');
-  }
+
+  const prepareMessageToSign = async (client, declaredKitties) => {
+      return await contract.methods.prepareMessageToSign(client, declaredKitties).call();
+  };
+
 
   const addTransactionCost = async(receipt) => {
       txCost = new BN('0');
@@ -72,7 +74,6 @@ describe('KittyHubChannel', () => {
     const args = [blocksNum];
     contract = await deployContract(web3, KittyHubChannelJson, owner, args);
     contractAddr = contract.options.address;
-    //console.log("0x" + root.toString('hex'));
 
   });
 
@@ -95,8 +96,10 @@ describe('KittyHubChannel', () => {
     });
 
     it ('close without dispute', async() => {
-        let signed = await web3.eth.sign("please show me 0 kittie", user);
+        let prepared = await prepareMessageToSign(user, 0);
+        let signed = await web3.eth.sign(prepared, user);
         await contract.methods.closeChannel(user, 0, signed).send({from: user});
+
         await waitNBlocks(blocksNum);
         let before = await balanceOf(user);
         let tx = await contract.methods.withdrawClosedChannel(user).send({from: user});
@@ -109,13 +112,14 @@ describe('KittyHubChannel', () => {
     describe('advanced closing', async() => {
 
         beforeEach(async() => {
-            let signed = await web3.eth.sign("please show me 2 kittie", user);
+            let prepared = await prepareMessageToSign(user, 2);
+            let signed = await web3.eth.sign(prepared, user);
             await contract.methods.closeChannel(user, 2, signed).send({from: user});
         });
 
         it ('close with dispute', async() => {
-
-            let betterReceit = await web3.eth.sign("please show me 42 kittie", user);
+            let prepared = await prepareMessageToSign(user, 42);
+            let betterReceit = await web3.eth.sign(prepared, user);
             await contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner});
 
             await waitNBlocks(blocksNum);
@@ -151,18 +155,17 @@ describe('KittyHubChannel', () => {
         let betterReceit = await web3.eth.sign("bs", user);
         await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
     });
-    it ('bs receit 2', async() => {
-        let betterReceit = await web3.eth.sign("please show me 42 kittie", owner);
+    it ('receit from other user', async() => {
+        let prepared = await prepareMessageToSign(user, 42);
+        let betterReceit = await web3.eth.sign(prepared, owner);
         await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
 
+        prepared = await prepareMessageToSign(owner, 42);
+        betterReceit = await web3.eth.sign(prepared, owner);
+        await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
     });
 
   });
-
-  descr
-
-
-
 
 
   });

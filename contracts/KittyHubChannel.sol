@@ -9,7 +9,7 @@ library ECRecovery {
    * @param hash bytes32 message, the hash is the signed message. What is recovered is the signer address.
    * @param sig bytes signature, the signature is generated using web3.eth.sign()
    */
-  function recover(bytes32 hash, bytes sig) public pure returns (address) {
+  function recover(bytes32 hash, bytes sig) internal pure returns (address) {
     bytes32 r;
     bytes32 s;
     uint8 v;
@@ -169,6 +169,12 @@ contract KittyHubChannel is Ownable {
     uint256 public ownerWithdrawableFunds;
     uint256 public disputeNumBlocks;
 
+    event ClosingChannel(address indexed user, uint64 indexed declaredViewedKitties);
+    event AddingFunds(address indexed user, uint256 value);
+
+    event WithdrawingChannelFunds(address indexed user, uint256 value);
+    event WithdrawingUsersFunds(uint256 value);
+
 
     constructor(uint256 _disputeNumBlocks) public Ownable() {
         ownerWithdrawableFunds = 0;
@@ -182,41 +188,25 @@ contract KittyHubChannel is Ownable {
 
     function addFunds() public payable {
         allocatedFunds[msg.sender] = allocatedFunds[msg.sender].add(msg.value);
+        emit AddingFunds(msg.sender, msg.value);
     }
 
-     function prepareMessageToSign(address channelOwner, uint256 currentAmount) public
-        view
-        returns (bytes32)
-    {
+     function prepareMessageToSign(address channelOwner, uint64 declaredViewedKitties)
+            public view returns (bytes32) {
         return keccak256(abi.encodePacked(
-            "MultiChannel update",
-            bytes32(currentAmount),
-            bytes32(channels[channelOwner].startedBlockNumber),
+            "KittyHubChannel update:",
+            bytes32(declaredViewedKitties),
+            bytes32(closingChannelInfo[channelOwner].closingTime),
             address(this)));
     }
 
-    function checkReceit(address user, uint64 declaredViewedKitties, bytes receit) pure returns(bool) {
+    function checkReceit(address user, uint64 declaredViewedKitties, bytes signature) public view returns(bool) {
 
-        bytes32 message = prepareMessageToSign(channelOwner, currentAmount);
+        bytes32 message = prepareMessageToSign(user, declaredViewedKitties);
         bytes32 ethSignedHash = ECRecovery.toEthSignedMessageHash(message);
-        address signer = ECRecovery.recover(ethSignedHash, sig);
+        address signer = ECRecovery.recover(ethSignedHash, signature);
 
-        require(signer == channelOwner);
-
-        //address signer = ECRecovery.recover(receit);
-
-        //return signer == user;
-    }
-
-    function check(address channelOwner, uint256 currentAmount, bytes sig) public
-            view
-            onlyClosingChannel(channelOwner)
-    {
-        Channel storage channel = channels[channelOwner];
-
-        require(currentAmount <= channel.currentAmount);
-
-
+        return signer == user;
     }
 
     modifier receitCorrect(address user, uint64 declaredViewedKitties, bytes receit) {
@@ -262,6 +252,7 @@ contract KittyHubChannel is Ownable {
         closingChannelInfo[user].locked = true;
         closingChannelInfo[user].closingTime = block.number;
         closingChannelInfo[user].viewedKitties = declaredViewedKitties;
+        emit ClosingChannel(user, declaredViewedKitties);
     }
 
     function provideBetterReceit(address user, uint64 declaredViewedKitties, bytes receit)
@@ -283,12 +274,14 @@ contract KittyHubChannel is Ownable {
         closingChannelInfo[user].closingTime = 0;
 
         user.transfer(rest);
+        emit WithdrawingChannelFunds(user, rest);
     }
 
     function withdrawUsersFunds() public onlyOwner {
         uint256 fundsToWithdraw = ownerWithdrawableFunds;
         ownerWithdrawableFunds = 0;
         owner.transfer(fundsToWithdraw);
+        emit WithdrawingUsersFunds(fundsToWithdraw);
     }
 
 }
