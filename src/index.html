@@ -21,7 +21,7 @@
     <div class="container">
       <div class="row">
         <div class="col-xs-12 col-sm-8 col-sm-push-2">
-          <h1 class="text-center">Escrow contract</h1>
+          <h1 class="text-center">KittieHub</h1>
           <hr/>
           <br/>
         </div>
@@ -29,25 +29,38 @@
 
       <div id="petsRow" class="row">
         <div class="col-sm-6 col-sm-push-3 col-md-4 col-md-push-4">
+
           <div class="panel panel-default">
             <div class="panel-heading">
-              <h3 class="panel-title">Contract address</h3>
+              <h3 class="panel-title">Kitties</h3>
             </div>
             <div class="panel-body">
-                <input class="form-control" id="contractAddressInput" type="text"></input>
+              <button class="btn btn-primary" id="ShowPussy" type="button">Show</button>
             </div>
           </div>
 
           <div class="panel panel-default">
             <div class="panel-heading">
-              <h3 class="panel-title">Data</h3>
+              <h3 class="panel-title">My account</h3>
             </div>
             <div class="panel-body">
-              <h4>Balance: <span id="EscrowBalance"> </span> <br/><br/> </h4>
-              <h4>Price: <span id="Price"> </span> <br/><br/> </h4>
-              <button class="btn btn-primary" id="ReadDataButton" type="button">Read</button>
+              <h4>Balance: <span id="Balance"> </span> <br/><br/> </h4>
+              <h4>KittiesSeen: <span id="KittiesSeen"> </span> <br/><br/> </h4>
+              <input class="form-control" id="addingBalance" type="text"></input>
+              <button class="btn btn-primary" id="addFundsButton" type="button">Add funds</button>
             </div>
           </div>
+
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <h3 class="panel-title">End subscription</h3>
+            </div>
+            <div class="panel-body">
+              <h4>You will get back: <span id="BalanceLeft"> </span> <br/><br/> </h4>
+              <button class="btn btn-primary" id="endSubscription" type="button">end subscription</button>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

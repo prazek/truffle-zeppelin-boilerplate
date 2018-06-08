@@ -165,6 +165,11 @@ describe('KittyHubChannel', () => {
         await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
     });
 
+    it('only owner can withdraw users funds', async() => {
+        await expectThrow(contract.methods.withdrawUsersFunds().send({from: user}));
+        await contract.methods.withdrawUsersFunds().send({from: owner});
+    });
+
   });
 
 
