@@ -35,5 +35,8 @@
     "zeppelin-solidity": "1.6.0",
     "ethereumjs-util": "5.2.0",
     "merkle-tree-solidity": "^1.0.8"
+  },
+  "dependencies": {
+    "express": "^4.16.3"
   }
 }
