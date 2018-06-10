@@ -1,5 +1,5 @@
-var TimeConstrainedCounter = artifacts.require("./TimeConstrainedCounter.sol");
+var KittyHubChannel = artifacts.require("./KittyHubChannel.sol");
 
 module.exports = function(deployer) {
-  deployer.deploy(TimeConstrainedCounter, 0, 32503676400);
+  deployer.deploy(KittyHubChannel, 20);
 };
