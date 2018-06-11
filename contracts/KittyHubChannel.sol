@@ -151,7 +151,6 @@ contract Ownable {
 }
 
 
-
 contract KittyHubChannel is Ownable {
     using SafeMath for uint256;
 
@@ -159,6 +158,7 @@ contract KittyHubChannel is Ownable {
         bool locked;
         uint64 viewedKitties;
         uint256 closingTime;
+        uint256 openingTime;
     }
 
     uint256 constant public KITTY_VIEW_PRICE = 1 szabo;
@@ -169,9 +169,9 @@ contract KittyHubChannel is Ownable {
     uint256 public ownerWithdrawableFunds;
     uint256 public disputeNumBlocks;
 
-    event ClosingChannel(address indexed user, uint64 indexed declaredViewedKitties);
     event AddingFunds(address indexed user, uint256 value);
-
+    event OpeningChannel(address indexed user);
+    event ClosingChannel(address indexed user, uint64 indexed declaredViewedKitties);
     event WithdrawingChannelFunds(address indexed user, uint256 value);
     event WithdrawingUsersFunds(uint256 value);
 
@@ -191,12 +191,31 @@ contract KittyHubChannel is Ownable {
         emit AddingFunds(msg.sender, msg.value);
     }
 
+    modifier channelNotOpen {
+        require(closingChannelInfo[msg.sender].openingTime == 0, "Channel already open");
+        _;
+    }
+
+    modifier channelOpen(address user) {
+        require(closingChannelInfo[user].openingTime != 0, "Channel not open");
+        _;
+    }
+
+    function openChannel() public payable channelNotOpen channelNotLocked(msg.sender) {
+
+        if (msg.value > 0)
+            addFunds();
+        require(allocatedFunds[msg.sender] > 0, "Require funds to open channel");
+        closingChannelInfo[msg.sender].openingTime = block.number;
+        emit OpeningChannel(msg.sender);
+    }
+
      function prepareMessageToSign(address channelOwner, uint64 declaredViewedKitties)
             public view returns (bytes32) {
         return keccak256(abi.encodePacked(
             "KittyHubChannel update:",
             bytes32(declaredViewedKitties),
-            bytes32(closingChannelInfo[channelOwner].closingTime),
+            bytes32(closingChannelInfo[channelOwner].openingTime),
             address(this)));
     }
 
@@ -245,7 +264,7 @@ contract KittyHubChannel is Ownable {
 
 
     function closeChannel(address user, uint64 declaredViewedKitties, bytes receit)
-            public channelNotLocked(user) receitCorrect(user, declaredViewedKitties, receit) {
+            public channelNotLocked(user) channelOpen(user) receitCorrect(user, declaredViewedKitties, receit) {
 
         require(KITTY_VIEW_PRICE.mul(declaredViewedKitties) <= allocatedFunds[user]);
 
@@ -256,7 +275,7 @@ contract KittyHubChannel is Ownable {
     }
 
     function provideBetterReceit(address user, uint64 declaredViewedKitties, bytes receit)
-            public channelLocked(user) disputeTimeNotPassed(user) receitCorrect(user, declaredViewedKitties, receit) {
+            public channelLocked(user) channelOpen(user) disputeTimeNotPassed(user) receitCorrect(user, declaredViewedKitties, receit) {
 
         require(closingChannelInfo[user].viewedKitties < declaredViewedKitties);
         closingChannelInfo[user].viewedKitties = declaredViewedKitties;
@@ -272,6 +291,7 @@ contract KittyHubChannel is Ownable {
         closingChannelInfo[user].viewedKitties = 0;
         closingChannelInfo[user].locked = false;
         closingChannelInfo[user].closingTime = 0;
+        closingChannelInfo[user].openingTime = 0;
 
         user.transfer(rest);
         emit WithdrawingChannelFunds(user, rest);

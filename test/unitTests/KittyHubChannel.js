@@ -49,7 +49,7 @@ describe('KittyHubChannel', () => {
   let blocksNum = new BN('5');
   const funds = new BN('2').mul(new BN('10').pow(new BN('18')));
   const kittyViewPrice = new BN('1').mul(new BN('10')).pow(new BN('12'));
-
+  let signed;
 
   const balanceOf = async (client) => new BN(await web3.eth.getBalance(client));
 
@@ -92,7 +92,7 @@ describe('KittyHubChannel', () => {
   describe('contract basic', async() => {
 
     beforeEach(async() => {
-      await contract.methods.addFunds().send({value: funds, from: user});
+      await contract.methods.openChannel().send({value: funds, from: user});
     });
 
     it ('close without dispute', async() => {
@@ -113,7 +113,7 @@ describe('KittyHubChannel', () => {
 
         beforeEach(async() => {
             let prepared = await prepareMessageToSign(user, 2);
-            let signed = await web3.eth.sign(prepared, user);
+            signed = await web3.eth.sign(prepared, user);
             await contract.methods.closeChannel(user, 2, signed).send({from: user});
         });
 
@@ -149,26 +149,45 @@ describe('KittyHubChannel', () => {
 
             afterContract = await withdrawableBalance();
             expect(afterContract).to.be.eq.BN(new BN('0'));
-    });
+        });
 
-    it ('bs receit', async() => {
-        let betterReceit = await web3.eth.sign("bs", user);
-        await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
-    });
-    it ('receit from other user', async() => {
-        let prepared = await prepareMessageToSign(user, 42);
-        let betterReceit = await web3.eth.sign(prepared, owner);
-        await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
+        it ('bs receit', async() => {
+            let betterReceit = await web3.eth.sign("bs", user);
+            await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
+        });
+        it ('receit from other user', async() => {
+            let prepared = await prepareMessageToSign(user, 42);
+            let betterReceit = await web3.eth.sign(prepared, owner);
+            await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
 
-        prepared = await prepareMessageToSign(owner, 42);
-        betterReceit = await web3.eth.sign(prepared, owner);
-        await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
-    });
+            prepared = await prepareMessageToSign(owner, 42);
+            betterReceit = await web3.eth.sign(prepared, owner);
+            await expectThrow(contract.methods.provideBetterReceit(user, 42, betterReceit).send({from: owner}));
+        });
 
-    it('only owner can withdraw users funds', async() => {
-        await expectThrow(contract.methods.withdrawUsersFunds().send({from: user}));
-        await contract.methods.withdrawUsersFunds().send({from: owner});
-    });
+        it('only owner can withdraw users funds', async() => {
+            await expectThrow(contract.methods.withdrawUsersFunds().send({from: user}));
+            await contract.methods.withdrawUsersFunds().send({from: owner});
+        });
+
+        it ('replay attack', async() => {
+
+            await waitNBlocks(blocksNum);
+
+            await contract.methods.withdrawClosedChannel(user).send({from: user});
+
+            await contract.methods.openChannel().send({value: funds, from: user});
+
+            await expectThrow(contract.methods.closeChannel(user, 2, signed).send({from: user}));
+
+            let prepared = await prepareMessageToSign(user, 2);
+            let newSigned = await web3.eth.sign(prepared, user);
+            await contract.methods.closeChannel(user, 2, newSigned).send({from: user});
+        });
+
+        it('wait time', async() => {
+            await expectThrow(contract.methods.withdrawClosedChannel(user).send({from: user}));
+        });
 
   });
 

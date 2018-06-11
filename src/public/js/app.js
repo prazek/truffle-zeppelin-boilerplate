@@ -59,7 +59,7 @@ App = {
     console.log(newBalance);
     console.log(web3.eth.defaultAccount);
 
-    App.contracts.KittyHubChannel.methods.addFunds().send({from: web3.eth.defaultAccount, value: newBalance});
+    App.contracts.KittyHubChannel.addFunds.send({from: web3.eth.defaultAccount, value: newBalance});
     //web3.eth.sendTransaction(App.contracts.KittyHubChannel.address, )
   },
 
@@ -67,18 +67,14 @@ App = {
   loadAccountData: function () {
     console.log("loading data");
     web3.eth.getAccounts(console.log);
-    App.account = web3.eth.defaultAccount;
-    console.log(App.account);
-    console.log(App.contracts.KittyHubChannel);
-    App.contracts.KittyHubChannel.allocatedFunds.call(App.account)
-        .then(function (funds) {
-          $('#Balance').text(funds);
-      }).catch(function (err) {
-        console.log("Load account data:");
-        console.log(err);
-      });
 
-    $.getJSON('/kittensSeen', function (data) {
+    App.account = web3.eth.defaultAccount;
+
+    var res = App.contracts.KittyHubChannel.allocatedFunds(App.account); //, function (err, funds) {
+          /*$('#Balance').text(funds);
+      });*/
+    console.log(res);
+      $.getJSON('/kittensSeen', function (data) {
         console.log("seen" + data.seen);
         $('#KittiesSeen').text(data.seen);
     });
